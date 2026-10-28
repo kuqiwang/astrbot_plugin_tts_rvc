@@ -18,6 +18,9 @@ from pathlib import Path
 ASTRBOT_ROOT = os.environ.get("ASTRBOT_ROOT", r"F:\QQbot\AstrBot")
 ROOT = Path(__file__).resolve().parent.parent
 
+# AstrBot 被 import 时可能往当前目录写 data/，先切到临时目录，别弄脏仓库
+os.chdir(tempfile.mkdtemp(prefix="tts_rvc_test_"))
+
 sys.path.insert(0, ASTRBOT_ROOT)
 sys.path.insert(0, str(ROOT))
 

@@ -67,8 +67,13 @@ if (Test-Path (Join-Path $ServiceDir ".env")) {
 } else {
     Add-Line "service\.env 不存在（会使用默认值）"
 }
-Add-Line "RVC_URL=$env:RVC_URL"
-Add-Line "VOICE_ID=$env:VOICE_ID  TTS_VOICE=$env:TTS_VOICE  PITCH=$env:PITCH  INDEX_RATE=$env:INDEX_RATE"
+$rvcUrl = if ($env:RVC_URL) { $env:RVC_URL } else { "http://127.0.0.1:7868（默认）" }
+$voiceId = if ($env:VOICE_ID) { $env:VOICE_ID } else { "(自动选第一个)" }
+$ttsVoice = if ($env:TTS_VOICE) { $env:TTS_VOICE } else { "zh-CN-XiaoxiaoNeural（默认）" }
+$pitch = if ($env:PITCH) { $env:PITCH } else { "0（默认）" }
+$indexRate = if ($env:INDEX_RATE) { $env:INDEX_RATE } else { "0.75（默认）" }
+Add-Line "RVC_URL=$rvcUrl"
+Add-Line "VOICE_ID=$voiceId  TTS_VOICE=$ttsVoice  PITCH=$pitch  INDEX_RATE=$indexRate"
 
 Add-Line ""
 Add-Line "--- 端口 ---"

@@ -10,6 +10,7 @@ env/
 runtime/
 logs/
 dist/
+data/
 service/.env
 *.log
 *.wav

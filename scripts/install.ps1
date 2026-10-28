@@ -8,13 +8,17 @@
 #   -SkipTorch      已经装过 torch，跳过下载
 #   -PythonPath     指定 python.exe 路径
 #   -IndexUrl       pip 包源，默认 PyPI
+#   -TorchVersion   torch 版本，默认 2.9.1（留空装最新）
+#   -RvcVersion     rvc-next 版本，默认 0.2.16（留空装最新）
 
 param(
     [switch]$Cpu,
     [switch]$Official,
     [switch]$SkipTorch,
     [string]$PythonPath = "",
-    [string]$IndexUrl = "https://pypi.org/simple"
+    [string]$IndexUrl = "https://pypi.org/simple",
+    [string]$TorchVersion = "2.9.1",
+    [string]$RvcVersion = "0.2.16"
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,6 +67,16 @@ if ($PythonPath) {
             if ($LASTEXITCODE -eq 0 -and $candidate) { $pyExe = $candidate.Trim() }
         } catch { }
     }
+    if (-not $pyExe) {
+        foreach ($fallback in @(
+            "$env:LOCALAPPDATA\Programs\Python\Python312\python.exe",
+            "$env:LOCALAPPDATA\Programs\Python\Python311\python.exe",
+            "C:\Python312\python.exe",
+            "C:\Python311\python.exe"
+        )) {
+            if (Test-Path $fallback) { $pyExe = $fallback; break }
+        }
+    }
 }
 
 if (-not $pyExe) {
@@ -95,6 +109,9 @@ Write-Ok "pip 已就绪"
 
 # ---------------------------------------------------------------- 3. torch
 Write-Step "3/6 安装 PyTorch"
+if (-not $Cpu -and -not (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) {
+    Write-Warn "没有检测到 NVIDIA 驱动。没有 N 卡请改用：scripts\install.ps1 -Cpu"
+}
 if ($SkipTorch) {
     Write-Warn "已跳过 torch 安装"
 } else {
@@ -107,7 +124,8 @@ if ($SkipTorch) {
         $torchIndex = "https://mirrors.nju.edu.cn/pytorch/whl/cu128"
     }
     Write-Host "  下载源：$torchIndex（约 2.5~3 GB，请耐心等）"
-    & $VenvPy -m pip install torch torchaudio --index-url $torchIndex
+    $torchSpec = if ($TorchVersion) { @("torch==$TorchVersion", "torchaudio==$TorchVersion") } else { @("torch", "torchaudio") }
+    & $VenvPy -m pip install @torchSpec --index-url $torchIndex
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "torch 安装失败，可能是镜像临时不可用。"
         Write-Warn "可以重试：scripts\install.ps1 -Official"
@@ -118,10 +136,11 @@ if ($SkipTorch) {
 
 # ---------------------------------------------------------------- 4. rvc-next
 Write-Step "4/6 安装 rvc-next（换声引擎）"
-& $VenvPy -m pip install rvc-next --index-url $IndexUrl
+$rvcSpec = if ($RvcVersion) { "rvc-next==$RvcVersion" } else { "rvc-next" }
+& $VenvPy -m pip install $rvcSpec --index-url $IndexUrl
 if ($LASTEXITCODE -ne 0) {
     Write-Warn "PyPI 直连失败，改用国内镜像重试..."
-    & $VenvPy -m pip install rvc-next --index-url https://pypi.tuna.tsinghua.edu.cn/simple
+    & $VenvPy -m pip install $rvcSpec --index-url https://pypi.tuna.tsinghua.edu.cn/simple
     if ($LASTEXITCODE -ne 0) { Fail "rvc-next 安装失败" }
 }
 Write-Ok "rvc-next 安装完成"

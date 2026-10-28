@@ -13,7 +13,19 @@ param(
 $ErrorActionPreference = "Stop"
 $Root = Split-Path $PSScriptRoot -Parent
 
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+$Git = $null
+$found = Get-Command git -ErrorAction SilentlyContinue
+if ($found) { $Git = $found.Source }
+if (-not $Git) {
+    foreach ($candidate in @(
+        "$env:ProgramFiles\Git\cmd\git.exe",
+        "$env:LOCALAPPDATA\Programs\Git\cmd\git.exe",
+        "${env:ProgramFiles(x86)}\Git\cmd\git.exe"
+    )) {
+        if (Test-Path $candidate) { $Git = $candidate; break }
+    }
+}
+if (-not $Git) {
     Write-Host "没有找到 git。请先安装 Git for Windows：" -ForegroundColor Red
     Write-Host "  winget install --id Git.Git -e --source winget" -ForegroundColor Yellow
     Write-Host "或者从 https://git-scm.com/download/win 下载安装，然后重新运行本脚本。"
@@ -24,32 +36,33 @@ Set-Location $Root
 
 if (-not (Test-Path (Join-Path $Root ".git"))) {
     Write-Host "初始化 git 仓库..." -ForegroundColor Cyan
-    git init -b main | Out-Null
+    & $Git init -b main | Out-Null
 }
 
-git config user.name $UserName
-git config user.email $UserEmail
+& $Git config user.name $UserName
+& $Git config user.email $UserEmail
+& $Git config core.quotepath false
 
-$remotes = git remote
+$remotes = & $Git remote
 if ($remotes -notcontains "origin") {
-    git remote add origin $RepoUrl
+    & $Git remote add origin $RepoUrl
     Write-Host "已配置远程仓库：$RepoUrl"
 } else {
-    $current = git remote get-url origin
+    $current = & $Git remote get-url origin
     if ($current -ne $RepoUrl) {
-        git remote set-url origin $RepoUrl
+        & $Git remote set-url origin $RepoUrl
         Write-Host "已更新远程仓库：$RepoUrl"
     }
 }
 
 Write-Host "暂存文件..." -ForegroundColor Cyan
-git add -A
+& $Git add -A
 
-$status = git status --porcelain
+$status = & $Git status --porcelain
 if ($status) {
     Write-Host "创建提交..." -ForegroundColor Cyan
     $message = "feat: TTS-RVC 语音回复插件 v1.1.0（服务、安装脚本、文档）"
-    git commit -m $message
+    & $Git commit -m $message
 } else {
     Write-Host "没有新的改动，跳过提交。"
 }
@@ -59,8 +72,8 @@ Write-Host "准备推送到 GitHub。" -ForegroundColor Cyan
 Write-Host "如果弹出登录窗口，请用浏览器完成 GitHub 登录（只需一次）。" -ForegroundColor Yellow
 Write-Host ""
 
-$branch = git rev-parse --abbrev-ref HEAD
-git push -u origin $branch
+$branch = & $Git rev-parse --abbrev-ref HEAD
+& $Git push -u origin $branch
 
 Write-Host ""
 if ($LASTEXITCODE -eq 0) {
